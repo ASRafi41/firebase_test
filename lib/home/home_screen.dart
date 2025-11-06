@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:firebase_test/home/widget/add_item_full_screen.dart';
 import 'package:firebase_test/home/widget/bnb_custom_painter.dart';
 import 'package:firebase_test/home/widget/home_screen_card.dart';
@@ -13,18 +14,46 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late final size = MediaQuery.of(context).size;
+  late final size = MediaQuery
+      .of(context)
+      .size;
+
+  Future<String> getTitle() async {
+    try {
+      FirebaseRemoteConfig remoteConfig = FirebaseRemoteConfig.instance;
+
+      await remoteConfig.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 10),
+        minimumFetchInterval: const Duration(minutes: 5),),
+      );
+      await remoteConfig.fetchAndActivate();
+      return remoteConfig.getString('title');
+    }
+    catch (e) {
+      print(e);
+    }
+    return "My firebase test app";
+  }
 
   @override
   Widget build(BuildContext context) {
     final Stream<QuerySnapshot> tasksStream = FirebaseFirestore.instance
         .collection("tasks")
         .snapshots();
+
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('My Firebase Test app'),
+        title: FutureBuilder<String>(
+          future: getTitle(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Text("My firebase test app");
+            }
+            return Text(snapshot.data ?? 'My Firebase Test App');
+          },
+        ),
       ),
       body: Stack(
         children: [
